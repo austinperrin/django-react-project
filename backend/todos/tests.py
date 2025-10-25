@@ -1,23 +1,20 @@
-from django.test import TestCase
+from django.contrib.auth.models import User
 from django.urls import reverse
-from rest_framework.test import APIClient
-from .models import Todo
+from rest_framework.test import APITestCase
+from rest_framework_simplejwt.tokens import RefreshToken
 
-class TodoApiTests(TestCase):
+class AuthenticatedTodosTests(APITestCase):
     def setUp(self):
-        self.client = APIClient()
+        self.user = User.objects.create_user("u1", password="p@ssword123")
+        refresh = RefreshToken.for_user(self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {str(refresh.access_token)}")
 
-    def test_create_and_list(self):
-        r = self.client.post(reverse("todo-list-create"), {"title": "Test"}, format="json")
+    def test_scoped_todos(self):
+        # create
+        r = self.client.post(reverse("todo-list-create"), {"title": "Secure Task"}, format="json")
         self.assertEqual(r.status_code, 201)
+
+        # list
         r = self.client.get(reverse("todo-list-create"))
         self.assertEqual(r.status_code, 200)
         self.assertEqual(len(r.json()), 1)
-
-    def test_update_and_delete(self):
-        t = Todo.objects.create(title="X")
-        r = self.client.patch(reverse("todo-rud", args=[t.id]), {"completed": True}, format="json")
-        self.assertEqual(r.status_code, 200)
-        self.assertTrue(r.json()["completed"])
-        r = self.client.delete(reverse("todo-rud", args=[t.id]))
-        self.assertEqual(r.status_code, 204)

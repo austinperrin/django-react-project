@@ -1,17 +1,20 @@
 import { useEffect, useState } from "react";
 import { api } from "./api";
+import { clearTokens } from "./auth";
 
 export default function App() {
   const [todos, setTodos] = useState([]);
   const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [me, setMe] = useState(null);
 
   async function load() {
     try {
       setLoading(true);
       setError("");
-      const data = await api.listTodos();
+      const [user, data] = await Promise.all([api.me(), api.listTodos()]);
+      setMe(user);
       setTodos(data);
     } catch (e) {
       setError(e.message);
@@ -38,9 +41,7 @@ export default function App() {
 
   async function toggleCompleted(todo) {
     try {
-      const updated = await api.updateTodo(todo.id, {
-        completed: !todo.completed,
-      });
+      const updated = await api.updateTodo(todo.id, { completed: !todo.completed });
       setTodos((ts) => ts.map((t) => (t.id === todo.id ? updated : t)));
     } catch (e) {
       setError(e.message);
@@ -56,9 +57,22 @@ export default function App() {
     }
   }
 
+  function logout() {
+    clearTokens();
+    window.location.reload(); // simplest state reset for demo
+  }
+
   return (
     <main style={{ maxWidth: 640, margin: "2rem auto", padding: "0 1rem" }}>
-      <h1>Todos</h1>
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h1>Todos</h1>
+        {me && (
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <span style={{ color: "#666" }}>Signed in as <b>{me.username}</b></span>
+            <button onClick={logout}>Logout</button>
+          </div>
+        )}
+      </header>
 
       <form onSubmit={addTodo} style={{ display: "flex", gap: 8 }}>
         <input
